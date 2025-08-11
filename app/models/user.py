@@ -5,35 +5,36 @@
 """
 
 from datetime import datetime
-from app.database import db
 from werkzeug.security import generate_password_hash, check_password_hash
+from app.database import db
 from sqlalchemy import BigInteger, String, Text, DateTime, Boolean, Enum
 import enum
-import uuid
 
 class UserRole(str, enum.Enum):
     """用户角色枚举"""
     ADMIN = "admin"
     USER = "user"
+    GUEST = "guest"
 
 class UserStatus(str, enum.Enum):
     """用户状态枚举"""
     ACTIVE = "active"
     INACTIVE = "inactive"
     SUSPENDED = "suspended"
+    DELETED = "deleted"
 
 class User(db.Model):
     """用户模型"""
     __tablename__ = 'users'
     
-    id = db.Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    username = db.Column(String(50), unique=True, nullable=False, comment='用户名')
-    email = db.Column(String(100), unique=True, nullable=False, comment='邮箱地址')
+    id = db.Column(BigInteger, primary_key=True, autoincrement=True)
+    username = db.Column(String(80), unique=True, nullable=False, comment='用户名')
+    email = db.Column(String(120), unique=True, nullable=False, comment='邮箱')
     password_hash = db.Column(String(255), nullable=False, comment='密码哈希')
     display_name = db.Column(String(100), comment='显示名称')
     avatar_url = db.Column(String(500), comment='头像URL')
     role = db.Column(Enum(UserRole), default=UserRole.USER, comment='用户角色')
-    status = db.Column(Enum(UserStatus), default=UserStatus.ACTIVE, comment='账户状态')
+    status = db.Column(Enum(UserStatus), default=UserStatus.ACTIVE, comment='用户状态')
     last_login_at = db.Column(DateTime, comment='最后登录时间')
     created_at = db.Column(DateTime, default=datetime.utcnow, comment='创建时间')
     updated_at = db.Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')

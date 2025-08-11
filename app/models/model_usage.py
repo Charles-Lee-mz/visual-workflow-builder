@@ -1,52 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-模型使用统计相关模型
+模型使用统计和调用日志模型
 """
 
 from datetime import datetime
 from app.database import db
-from sqlalchemy import String, Text, DateTime, Integer, Float, ForeignKey, Date
-from sqlalchemy.orm import relationship
-import uuid
 
 class ModelUsage(db.Model):
     """模型使用统计模型"""
     __tablename__ = 'model_usage'
     
-    id = db.Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    model_config_id = db.Column(String(36), ForeignKey('model_configs.id'), nullable=False, comment='模型配置ID')
-    user_id = db.Column(String(36), comment='用户ID')
-    date = db.Column(Date, nullable=False, comment='统计日期')
-    
-    # 使用统计
-    request_count = db.Column(Integer, default=0, comment='请求次数')
-    success_count = db.Column(Integer, default=0, comment='成功次数')
-    error_count = db.Column(Integer, default=0, comment='错误次数')
-    
-    # 令牌统计
-    input_tokens = db.Column(Integer, default=0, comment='输入令牌数')
-    output_tokens = db.Column(Integer, default=0, comment='输出令牌数')
-    total_tokens = db.Column(Integer, default=0, comment='总令牌数')
-    
-    # 时间统计
-    total_duration = db.Column(Float, default=0.0, comment='总耗时(秒)')
-    avg_duration = db.Column(Float, default=0.0, comment='平均耗时(秒)')
-    
-    # 成本统计
-    estimated_cost = db.Column(Float, default=0.0, comment='预估成本')
-    
-    # 时间字段
-    created_at = db.Column(DateTime, default=datetime.utcnow, comment='创建时间')
-    updated_at = db.Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    id = db.Column(db.Integer, primary_key=True)
+    model_config_id = db.Column(db.Integer, db.ForeignKey('model_configs.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    total_calls = db.Column(db.Integer, default=0)  # 总调用次数
+    total_tokens = db.Column(db.Integer, default=0)  # 总token消耗
+    success_calls = db.Column(db.Integer, default=0)  # 成功调用次数
+    failed_calls = db.Column(db.Integer, default=0)  # 失败调用次数
+    last_called_at = db.Column(db.DateTime)  # 最后调用时间
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # 关系
-    model_config = relationship("ModelConfig", back_populates="usage_logs")
-    
-    # 唯一约束
-    __table_args__ = (
-        db.UniqueConstraint('model_config_id', 'user_id', 'date', name='uk_model_usage_daily'),
-    )
+    model_config = db.relationship('ModelConfig', backref=db.backref('usage_stats', lazy=True))
+    user = db.relationship('User', backref=db.backref('model_usage', lazy=True))
     
     def to_dict(self):
         """转换为字典"""
@@ -54,19 +32,17 @@ class ModelUsage(db.Model):
             'id': self.id,
             'model_config_id': self.model_config_id,
             'user_id': self.user_id,
-            'date': self.date.isoformat() if self.date else None,
-            'request_count': self.request_count,
-            'success_count': self.success_count,
-            'error_count': self.error_count,
-            'input_tokens': self.input_tokens,
-            'output_tokens': self.output_tokens,
+            'total_calls': self.total_calls,
             'total_tokens': self.total_tokens,
-            'total_duration': self.total_duration,
-            'avg_duration': self.avg_duration,
-            'estimated_cost': self.estimated_cost,
+            'success_calls': self.success_calls,
+            'failed_calls': self.failed_calls,
+            'success_rate': round(self.success_calls / max(self.total_calls, 1) * 100, 2),
+            'last_called_at': self.last_called_at.isoformat() if self.last_called_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
     
     def __repr__(self):
-        return f'<ModelUsage {self.model_config_id} - {self.date}>'
+        return f'<ModelUsage {self.model_config_id} - {self.total_calls} calls>'
+
+# ModelCallLog 已在 model_call_log.py 中定义，避免重复定义
